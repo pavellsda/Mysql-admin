@@ -1,13 +1,16 @@
 package com.pavellsda.mysqladmin.controllers;
 
-import javafx.application.Platform;
+import com.pavellsda.mysqladmin.TableConstructorWindow;
+import com.pavellsda.mysqladmin.utils.NumTextField;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
 import javafx.util.Callback;
 import javafx.util.Pair;
@@ -16,6 +19,9 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.Vector;
+
+import static com.pavellsda.mysqladmin.utils.Utils.*;
 
 /**
  * Created by pavellsda on 21.01.17.
@@ -30,32 +36,40 @@ public class MainWindowController {
     public ListView<String> tableList;
     public TableView table;
     public Button newDataButton;
+    private final ContextMenu popupMenu = new ContextMenu();
+    public Button createTable;
 
     private String jdbcDriver = "com.mysql.jdbc.Driver";
     private String dbAddress = "jdbc:mysql://localhost:3306/";
-    private String userPass = "?user=root&password=1";
-
-    private String dbName = "test";
+    private String dbName = "";
     private String userName = "root";
     private String password = "1";
 
     private String[] colsFromBase;
+    private String[] colsTypeFromBase;
 
     private Statement statement;
     private Connection connection;
 
     private int currentColumnsCount = 0;
-
+    private TableConstructorWindow tableConstruct;
     public MainWindowController() {
     }
 
 
     @FXML
     private void initialize() throws IOException {
+
+        MenuItem delete = new MenuItem("Delete");
+        MenuItem close = new MenuItem("Close");
+
+        popupMenu.getItems().addAll(delete,close);
+
+        delete.setOnAction((event) -> menuDelete());
+        close.setOnAction((event) -> menuClose());
+
         connect();
         initCurrentDataBase();
-        //initTableList();
-        //initTable();
     }
 
     private void connect(){
@@ -97,7 +111,12 @@ public class MainWindowController {
         tableList.getItems().clear();
         tableList.getItems().addAll(FXCollections.observableList(getTables(currentDataBase.getValue())));
         tableList.setOnMouseClicked(event -> {
-            initTable();
+            if (event.getButton() == MouseButton.PRIMARY) {
+                initTable();
+            } else {
+                popupMenu.show(table, event.getScreenX(), event.getScreenY());
+            }
+
         });
     }
 
@@ -114,7 +133,25 @@ public class MainWindowController {
             currentColumnsCount = md.getColumnCount();
 
             colsFromBase = new String[currentColumnsCount];
+            colsTypeFromBase = new String[currentColumnsCount];
+
+            table.setOnMouseClicked(event -> {
+                if (event.isControlDown())
+                    table.getSelectionModel().setSelectionMode(
+                            SelectionMode.MULTIPLE);
+                else
+                    table.getSelectionModel().setSelectionMode(
+                            SelectionMode.SINGLE);
+                if (event.getButton() == MouseButton.PRIMARY) {
+
+                } else {
+                    popupMenu.show(table, event.getScreenX(), event.getScreenY());
+                }
+            });
+
             for(int i=0 ; i<rs.getMetaData().getColumnCount(); i++){
+                colsTypeFromBase[i] = String.valueOf(rs.getMetaData().getColumnTypeName(i+1));
+                print(colsTypeFromBase[i]);
                 final int j = i;
                 colsFromBase[i] = rs.getMetaData().getColumnName(i+1);
                 TableColumn col = new TableColumn(rs.getMetaData().getColumnName(i+1));
@@ -123,7 +160,7 @@ public class MainWindowController {
                         return new SimpleStringProperty(param.getValue().get(j).toString());
                     }
                 });
-                col.setMinWidth(100);
+                col.prefWidthProperty().bind(table.widthProperty().divide(4));
                 table.getColumns().addAll(col);
             }
             while(rs.next()){
@@ -198,27 +235,83 @@ public class MainWindowController {
         initTable();
     }
 
+    private void deleteData(StringBuilder toDelete, int count, int size) {
+        StringBuilder sql_request = new StringBuilder("DELETE FROM "+tableList.getSelectionModel().getSelectedItem()
+                +" WHERE ");
+        sql_request.append(toDelete+";");
+
+        print(sql_request.toString());
+        try {
+            statement.executeUpdate(String.valueOf(sql_request));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        if(count==size-1)
+            initTable();
+    }
+
+
+    private void menuDelete(){
+        if(table.getSelectionModel().getSelectedItems().size()>0) {
+            ObservableList itemsToDelete = table.getSelectionModel().getSelectedItems();
+            StringBuilder strToDelete;
+            for (int i = 0; i < itemsToDelete.size(); i++){
+                strToDelete = new StringBuilder("");
+                String anItemsToDelete = itemsToDelete.get(i).toString();
+                anItemsToDelete = subStr(anItemsToDelete);
+                String[] dataToDelete = anItemsToDelete.split(",");
+
+                for(int j = 0; j < dataToDelete.length; j++){
+                    if(j!=0)
+                        dataToDelete[j] = dataToDelete[j].substring(1,dataToDelete[j].length());
+
+                    strToDelete.append(createSqlRequestToDelete(colsFromBase[j],
+                            colsTypeFromBase[j],dataToDelete[j], j, dataToDelete.length));
+                }
+               deleteData(strToDelete, i, itemsToDelete.size());
+            }
+        }
+    }
+
+
+    private void menuClose(){
+        popupMenu.hide();
+    }
+
+    @FXML
+    public void createTable(){
+
+        try {
+           tableConstruct = new TableConstructorWindow();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
     @FXML
     public void newData(){
-        // Create the custom dialog.
         Dialog<Pair<String, String>> dialog = new Dialog<>();
         dialog.setTitle("Input Data");
 
-        ButtonType loginButtonType = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(loginButtonType, ButtonType.CANCEL);
+        ButtonType acceptButton = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(acceptButton, ButtonType.CANCEL);
+
 
         GridPane gridPane = new GridPane();
         gridPane.setHgap(10);
         gridPane.setVgap(10);
         gridPane.setPadding(new Insets(20, 150, 10, 10));
 
-        TextField[] colName = new TextField[table.getColumns().size()];
+        Vector fields = new Vector<>();
 
-        for (int i = 0; i < colName.length; i++) {
+
+        for (int i = 0; i < table.getColumns().size(); i++) {
             String columnName = colsFromBase[i];
-            colName[i] = new TextField(columnName);
-            colName[i].setPromptText(columnName);
-            gridPane.add(colName[i], i, 1);
+            String columnType = colsTypeFromBase[i];
+
+            fields.add(createField(columnType));
+
+            gridPane.add((Node)fields.get(i), i, 1);
             gridPane.add(new Label(columnName), i, 0);
 
         }
@@ -226,20 +319,24 @@ public class MainWindowController {
 
         dialog.getDialogPane().setContent(gridPane);
 
-        Platform.runLater(() -> {
-            for (int i = 0; i < colName.length; i++) {
-            colName[i].requestFocus();
-            }
-        });
+        String[] cols = new String[fields.size()];
 
-        String[] cols = new String[colName.length];
 
         dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == loginButtonType) {
-                for (int i = 0; i < colName.length; i++) {
-                    cols[i] = colName[i].getText();
+            for (int i = 0; i < fields.size(); i++){
+                Object field = fields.get(i);
+                String className = field.getClass().getSimpleName();
+                switch (className){
+                    case "NumTextField":
+                        cols[i] = NumTextField.class.cast(field).getText();
+                        break;
+                    case "TextField":
+                        cols[i] =  TextField.class.cast(field).getText();
+                        break;
+                    case "DatePicker":
+                        cols[i] =  DatePicker.class.cast(field).getValue().toString();
+                        break;
                 }
-                return null;
             }
             return null;
         });
@@ -250,5 +347,9 @@ public class MainWindowController {
 
 
     }
+
+    public TableConstructorWindow getTableConstructorPane(){return this.tableConstruct;}
+
+
 
 }

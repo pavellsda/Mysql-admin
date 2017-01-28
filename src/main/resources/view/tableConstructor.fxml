@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.text.*?>
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+
+<GridPane fx:id="parent" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pavellsda.mysqladmin.controllers.TableConstructorController">
+  <columnConstraints>
+    <ColumnConstraints hgrow="SOMETIMES" maxWidth="344.0" minWidth="10.0" prefWidth="109.0" />
+    <ColumnConstraints hgrow="SOMETIMES" maxWidth="569.0" minWidth="10.0" prefWidth="491.0" />
+  </columnConstraints>
+  <rowConstraints>
+    <RowConstraints maxHeight="192.0" minHeight="10.0" prefHeight="34.0" vgrow="SOMETIMES" />
+    <RowConstraints maxHeight="372.0" minHeight="10.0" prefHeight="366.0" vgrow="SOMETIMES" />
+  </rowConstraints>
+   <children>
+      <Text strokeType="OUTSIDE" strokeWidth="0.0" text="Table Name:" />
+      <TextField fx:id="tableNameField" GridPane.columnIndex="1" />
+      <Button fx:id="addColumnButton" mnemonicParsing="false" onAction="#addColumn" prefHeight="25.0" prefWidth="152.0" text="Add Column" GridPane.rowIndex="1" />
+      <GridPane fx:id="gridPane" GridPane.columnIndex="1" GridPane.rowIndex="1">
+        <columnConstraints>
+          <ColumnConstraints hgrow="SOMETIMES" maxWidth="243.0" minWidth="10.0" prefWidth="239.0" />
+          <ColumnConstraints hgrow="SOMETIMES" maxWidth="268.0" minWidth="10.0" prefWidth="252.0" />
+        </columnConstraints>
+        <rowConstraints>
+          <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        </rowConstraints>
+      </GridPane>
+   </children>
+</GridPane>
