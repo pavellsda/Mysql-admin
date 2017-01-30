@@ -17,7 +17,7 @@ public class TableConstructorWindow {
         load = loader.load(getClass().getResourceAsStream(fxmlFile));
         Stage stage = new Stage();
         stage.initStyle(StageStyle.UNDECORATED);
-        Scene scene = new Scene(load,600,500);
+        Scene scene = new Scene(load,750,500);
         stage.setScene(scene);
         stage.show();
 

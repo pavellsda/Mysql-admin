@@ -10,6 +10,7 @@ public class NumTextField extends TextField {
     private String type = null;
 
     public NumTextField(String type){this.type = type;}
+    public NumTextField(){};
 
     @Override
     public void replaceText(int start, int end, String text) {

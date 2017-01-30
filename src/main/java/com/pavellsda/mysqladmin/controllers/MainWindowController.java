@@ -1,17 +1,21 @@
 package com.pavellsda.mysqladmin.controllers;
 
-import com.pavellsda.mysqladmin.TableConstructorWindow;
 import com.pavellsda.mysqladmin.utils.NumTextField;
+import com.pavellsda.mysqladmin.utils.Table;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
+import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.Pair;
 
@@ -22,6 +26,7 @@ import java.util.Optional;
 import java.util.Vector;
 
 import static com.pavellsda.mysqladmin.utils.Utils.*;
+import static jdk.nashorn.internal.objects.Global.print;
 
 /**
  * Created by pavellsda on 21.01.17.
@@ -36,14 +41,16 @@ public class MainWindowController {
     public ListView<String> tableList;
     public TableView table;
     public Button newDataButton;
-    private final ContextMenu popupMenu = new ContextMenu();
+    private ContextMenu popupMenu = new ContextMenu();
+    private ContextMenu listPopupMenu = new ContextMenu();
     public Button createTable;
 
     private String jdbcDriver = "com.mysql.jdbc.Driver";
     private String dbAddress = "jdbc:mysql://localhost:3306/";
-    private String dbName = "";
+    private String dbName;
     private String userName = "root";
     private String password = "1";
+    private String newTable;
 
     private String[] colsFromBase;
     private String[] colsTypeFromBase;
@@ -51,25 +58,30 @@ public class MainWindowController {
     private Statement statement;
     private Connection connection;
 
-    private int currentColumnsCount = 0;
-    private TableConstructorWindow tableConstruct;
     public MainWindowController() {
     }
 
 
     @FXML
     private void initialize() throws IOException {
-
-        MenuItem delete = new MenuItem("Delete");
-        MenuItem close = new MenuItem("Close");
-
-        popupMenu.getItems().addAll(delete,close);
-
-        delete.setOnAction((event) -> menuDelete());
-        close.setOnAction((event) -> menuClose());
-
+        initPopupMenu();
         connect();
         initCurrentDataBase();
+    }
+
+    private void initPopupMenu(){
+        ArrayList<String> menuItems = new ArrayList<>();
+        menuItems.add("Delete");
+        menuItems.add("Close");
+
+        listPopupMenu = createPopupMenu(menuItems);
+        listPopupMenu.getItems().get(0).setOnAction((event) -> listMenuDelete());
+        listPopupMenu.getItems().get(1).setOnAction((event) -> menuClose());
+
+        popupMenu = createPopupMenu(menuItems);
+        popupMenu.getItems().get(0).setOnAction((event) -> menuDelete());
+        popupMenu.getItems().get(1).setOnAction((event) -> menuClose());
+
     }
 
     private void connect(){
@@ -77,25 +89,28 @@ public class MainWindowController {
             Class.forName(jdbcDriver);
             connection = DriverManager.getConnection(dbAddress, userName, password);
             statement = connection.createStatement();
-            String[] databases;
 
-            //ResultSetMetaData md = rs.getMetaData();
-
-            //statement.executeUpdate("SHOW DATABASES");
         } catch (SQLException | ClassNotFoundException exception){
             exception.printStackTrace();
             print("Exception");
         }
     }
 
+    /*
+    Function for initialize JavaFX elements
+     */
+
     private void initCurrentDataBase(){
+        currentDataBase.getItems().clear();
+
         ArrayList<String> bases = getDataBases();
 
         currentDataBase.getItems().addAll(bases);
 
         currentDataBase.valueProperty().addListener((ov, t, t1) -> {
             try {
-                dbName = currentDataBase.getValue();
+                dbName = getCurrentDataBase();
+
                 connection = DriverManager.getConnection(dbAddress+dbName, userName, password);
                 statement = connection.createStatement();
             } catch (SQLException e) {
@@ -114,44 +129,34 @@ public class MainWindowController {
             if (event.getButton() == MouseButton.PRIMARY) {
                 initTable();
             } else {
-                popupMenu.show(table, event.getScreenX(), event.getScreenY());
+                listPopupMenu.show(tableList, event.getScreenX(), event.getScreenY());
             }
 
         });
+
     }
 
     private void initTable(){
-
         try {
-            table.getItems().clear();
-            table.getColumns().clear();
             ObservableList<ObservableList> data = FXCollections.observableArrayList();
             Statement stmt = connection.createStatement();
-            ResultSet rs = stmt.executeQuery( "SELECT * FROM " + tableList.getSelectionModel().getSelectedItem());
+            StringBuilder sql_request = new StringBuilder("SELECT * FROM ");
+            if(tableList.getSelectionModel().getSelectedItems()!=null)
+                sql_request.append(tableList.getSelectionModel().getSelectedItem());
+            else
+                sql_request.append(newTable);
+            ResultSet rs = stmt.executeQuery(sql_request.toString());
             ResultSetMetaData md = rs.getMetaData();
 
-            currentColumnsCount = md.getColumnCount();
-
+            int currentColumnsCount = md.getColumnCount();
             colsFromBase = new String[currentColumnsCount];
             colsTypeFromBase = new String[currentColumnsCount];
 
-            table.setOnMouseClicked(event -> {
-                if (event.isControlDown())
-                    table.getSelectionModel().setSelectionMode(
-                            SelectionMode.MULTIPLE);
-                else
-                    table.getSelectionModel().setSelectionMode(
-                            SelectionMode.SINGLE);
-                if (event.getButton() == MouseButton.PRIMARY) {
-
-                } else {
-                    popupMenu.show(table, event.getScreenX(), event.getScreenY());
-                }
-            });
+            table.getItems().clear();
+            table.getColumns().clear();
 
             for(int i=0 ; i<rs.getMetaData().getColumnCount(); i++){
                 colsTypeFromBase[i] = String.valueOf(rs.getMetaData().getColumnTypeName(i+1));
-                print(colsTypeFromBase[i]);
                 final int j = i;
                 colsFromBase[i] = rs.getMetaData().getColumnName(i+1);
                 TableColumn col = new TableColumn(rs.getMetaData().getColumnName(i+1));
@@ -173,121 +178,58 @@ public class MainWindowController {
                 data.add(row);
 
             }
-            table.setItems((ObservableList) data);
+            table.setItems(data);
         } catch(Exception e){
             e.printStackTrace();
             System.out.println("Error on Building Data");
         }
-    }
 
-
-    private ArrayList<String> getDataBases(){
-        ArrayList<String> bases = new ArrayList<>();
-        try {
-            DatabaseMetaData dbmd = connection.getMetaData();
-            ResultSet rs = dbmd.getCatalogs();
-            while (rs.next())
-             bases.add(rs.getString(1));
-            rs.close();
-        } catch (SQLException exception) {
-            exception.printStackTrace();
-            print("Exception");
-        }
-        return bases;
-    }
-
-    private ArrayList<String> getTables(String dbName){
-        ArrayList<String> tables = new ArrayList<>();
-        try {
-            DatabaseMetaData dbmd = connection.getMetaData();
-            ResultSet rs = dbmd.getTables(dbName, "", "%",null);
-            while (rs.next())
-                tables.add(rs.getString(3));
-            rs.close();
-        } catch (SQLException exception) {
-            exception.printStackTrace();
-            print("Exception");
-        }
-        return tables;
-    }
-
-    private void print(String stringToPrint){
-        System.out.println(stringToPrint);
-    }
-
-    private void sendNewData(String[] data){
-        StringBuilder sql_request = new StringBuilder("INSERT INTO " +
-                tableList.getSelectionModel().getSelectedItem() + " VALUES (");
-        for(int i = 0; i < data.length; i++){
-            sql_request.append("'"+data[i]);
-
-            if(i!=data.length-1)
-                sql_request.append("',");
+        table.setOnMouseClicked(event -> {
+            if (event.isControlDown())
+                table.getSelectionModel().setSelectionMode(
+                        SelectionMode.MULTIPLE);
             else
-                sql_request.append("'");
-        }
-        sql_request.append(");");
-        try {
-            statement.executeUpdate(String.valueOf(sql_request));
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        initTable();
+                table.getSelectionModel().setSelectionMode(
+                        SelectionMode.SINGLE);
+
+            if (event.getButton() == MouseButton.SECONDARY)
+                popupMenu.show(table, event.getScreenX(), event.getScreenY());
+        });
+
     }
 
-    private void deleteData(StringBuilder toDelete, int count, int size) {
-        StringBuilder sql_request = new StringBuilder("DELETE FROM "+tableList.getSelectionModel().getSelectedItem()
-                +" WHERE ");
-        sql_request.append(toDelete+";");
-
-        print(sql_request.toString());
-        try {
-            statement.executeUpdate(String.valueOf(sql_request));
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        if(count==size-1)
-            initTable();
-    }
-
-
-    private void menuDelete(){
-        if(table.getSelectionModel().getSelectedItems().size()>0) {
-            ObservableList itemsToDelete = table.getSelectionModel().getSelectedItems();
-            StringBuilder strToDelete;
-            for (int i = 0; i < itemsToDelete.size(); i++){
-                strToDelete = new StringBuilder("");
-                String anItemsToDelete = itemsToDelete.get(i).toString();
-                anItemsToDelete = subStr(anItemsToDelete);
-                String[] dataToDelete = anItemsToDelete.split(",");
-
-                for(int j = 0; j < dataToDelete.length; j++){
-                    if(j!=0)
-                        dataToDelete[j] = dataToDelete[j].substring(1,dataToDelete[j].length());
-
-                    strToDelete.append(createSqlRequestToDelete(colsFromBase[j],
-                            colsTypeFromBase[j],dataToDelete[j], j, dataToDelete.length));
-                }
-               deleteData(strToDelete, i, itemsToDelete.size());
-            }
-        }
-    }
-
-
-    private void menuClose(){
-        popupMenu.hide();
-    }
-
+    /*
+    Buttons handlers
+     */
     @FXML
     public void createTable(){
 
-        try {
-           tableConstruct = new TableConstructorWindow();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        if(currentDataBase.getValue() != null) {
+            try {
+                FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/view/tableConstructor.fxml"));
+                Parent root = fxmlLoader.load();
+                TableConstructorController controller=fxmlLoader.getController();
 
+                Stage stage = new Stage();
+                stage.setTitle("Table Creator");
+                stage.setScene(new Scene(root));
+                stage.show();
+
+                controller.setStage(stage);
+                controller.setMainController(this);
+
+                if(!stage.isShowing())
+                    sendTableToDataBase(controller.getCreatedTable());
+
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+        }
+        else
+            alert("\n" +
+                    "First select the database");
     }
+
     @FXML
     public void newData(){
         Dialog<Pair<String, String>> dialog = new Dialog<>();
@@ -296,14 +238,12 @@ public class MainWindowController {
         ButtonType acceptButton = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(acceptButton, ButtonType.CANCEL);
 
-
         GridPane gridPane = new GridPane();
         gridPane.setHgap(10);
         gridPane.setVgap(10);
         gridPane.setPadding(new Insets(20, 150, 10, 10));
 
         Vector fields = new Vector<>();
-
 
         for (int i = 0; i < table.getColumns().size(); i++) {
             String columnName = colsFromBase[i];
@@ -316,11 +256,9 @@ public class MainWindowController {
 
         }
 
-
         dialog.getDialogPane().setContent(gridPane);
 
         String[] cols = new String[fields.size()];
-
 
         dialog.setResultConverter(dialogButton -> {
             for (int i = 0; i < fields.size(); i++){
@@ -344,11 +282,159 @@ public class MainWindowController {
         Optional<Pair<String, String>> result = dialog.showAndWait();
 
         sendNewData(cols);
-
-
     }
 
-    public TableConstructorWindow getTableConstructorPane(){return this.tableConstruct;}
+    /*
+    Popup menu handlers
+     */
+
+    private void menuDelete(){
+        if(table.getSelectionModel().getSelectedItems().size()>0) {
+            ObservableList itemsToDelete = table.getSelectionModel().getSelectedItems();
+            StringBuilder strToDelete;
+            for (int i = 0; i < itemsToDelete.size(); i++){
+                strToDelete = new StringBuilder("");
+                String anItemsToDelete = itemsToDelete.get(i).toString();
+                anItemsToDelete = subStr(anItemsToDelete);
+                String[] dataToDelete = anItemsToDelete.split(",");
+
+                for(int j = 0; j < dataToDelete.length; j++){
+                    if(j!=0)
+                        dataToDelete[j] = dataToDelete[j].substring(1,dataToDelete[j].length());
+
+                    strToDelete.append(createSqlRequestToDelete(colsFromBase[j],
+                            colsTypeFromBase[j],dataToDelete[j], j, dataToDelete.length));
+                }
+                deleteData(strToDelete, i, itemsToDelete.size());
+            }
+        }
+    }
+
+    private void listMenuDelete() {
+        if (tableList.getSelectionModel().getSelectedItems().size() > 0) {
+            ObservableList itemsToDelete = tableList.getSelectionModel().getSelectedItems();
+            deleteTable(subStr(itemsToDelete.toString()));
+        }
+    }
+
+    private void menuClose(){
+        popupMenu.hide();
+    }
+
+    /*
+    Functions for working with database
+     */
+
+    private ArrayList<String> getDataBases(){
+        ArrayList<String> bases = new ArrayList<>();
+        try {
+            DatabaseMetaData dbmd = connection.getMetaData();
+            ResultSet rs = dbmd.getCatalogs();
+            while (rs.next())
+                bases.add(rs.getString(1));
+            rs.close();
+        } catch (SQLException exception) {
+            exception.printStackTrace();
+            print("Exception");
+        }
+        return bases;
+    }
+
+    private ArrayList<String> getTables(String dbName){
+        ArrayList<String> tables = new ArrayList<>();
+        try {
+            DatabaseMetaData dbmd = connection.getMetaData();
+            ResultSet rs = dbmd.getTables(dbName, "", "%",null);
+            while (rs.next())
+                tables.add(rs.getString(3));
+            rs.close();
+        } catch (SQLException exception) {
+            exception.printStackTrace();
+            print("Exception");
+        }
+        return tables;
+    }
+
+
+    private void sendNewData(String[] data){
+        StringBuilder sql_request = new StringBuilder("INSERT INTO " +
+                tableList.getSelectionModel().getSelectedItem() + " VALUES (");
+        for(int i = 0; i < data.length; i++){
+            sql_request.append("'"+data[i]);
+
+            if(i!=data.length-1)
+                sql_request.append("',");
+            else
+                sql_request.append("'");
+        }
+        sql_request.append(");");
+        try {
+            statement.executeUpdate(String.valueOf(sql_request));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        initTable();
+    }
+
+
+    void sendTableToDataBase(Table table) throws SQLException {
+        StringBuilder sql_request = new StringBuilder("CREATE TABLE " +
+                table.getTableName()+ " (");
+
+        for(int i = 0; i < table.getColumnsNames().length; i++){
+            sql_request.append(table.getColumnsNames()[i]).append(" ").append(table.getColumnsTypes()[i]);
+
+            if(i!=table.getColumnsNames().length-1)
+                sql_request.append(",");
+            else
+                sql_request.append(");");
+        }
+
+        statement.executeUpdate(String.valueOf(sql_request));
+
+        newTable = table.getTableName();
+        updateDataBase();
+    }
+
+    private void deleteData(StringBuilder toDelete, int count, int size) {
+        StringBuilder sql_request = new StringBuilder("DELETE FROM " +
+                tableList.getSelectionModel().getSelectedItem() + " WHERE ");
+        sql_request.append(toDelete).append(";");
+
+        try {
+            statement.executeUpdate(String.valueOf(sql_request));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        if(count==size-1)
+            initTable();
+    }
+
+    private void deleteTable(String toDelete){
+        StringBuilder sql_request = new StringBuilder("DROP TABLE " +toDelete +";");
+        print(sql_request.toString());
+        try {
+            statement.executeUpdate(String.valueOf(sql_request));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        updateDataBase();
+    }
+
+    private void updateDataBase(){
+        try {
+            dbName = getCurrentDataBase();
+
+            connection = DriverManager.getConnection(dbAddress+dbName, userName, password);
+            statement = connection.createStatement();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        initTableList();
+    }
+
+    private String getCurrentDataBase() { return currentDataBase.getValue(); }
 
 
 
