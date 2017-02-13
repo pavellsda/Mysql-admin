@@ -4,7 +4,7 @@
 <?import java.lang.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pavellsda.mysqladmin.controllers.MainWindowController">
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" style="-fx-background-color: #9330CF;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pavellsda.mysqladmin.controllers.MainWindowController">
    <children>
       <GridPane prefHeight="600.0" prefWidth="800.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
         <columnConstraints>
@@ -12,29 +12,30 @@
           <ColumnConstraints hgrow="SOMETIMES" maxWidth="671.0" minWidth="10.0" prefWidth="630.0" />
         </columnConstraints>
         <rowConstraints>
-          <RowConstraints maxHeight="476.0" minHeight="10.0" prefHeight="58.0" vgrow="SOMETIMES" />
-          <RowConstraints maxHeight="560.0" minHeight="10.0" prefHeight="542.0" vgrow="SOMETIMES" />
+          <RowConstraints maxHeight="476.0" minHeight="10.0" prefHeight="74.0" vgrow="SOMETIMES" />
+          <RowConstraints maxHeight="560.0" minHeight="10.0" prefHeight="526.0" vgrow="SOMETIMES" />
         </rowConstraints>
          <children>
-            <Pane prefHeight="200.0" prefWidth="200.0">
+            <Pane fx:id="buttonsPane" prefHeight="200.0" prefWidth="200.0">
                <children>
-                  <ComboBox fx:id="currentDataBase" layoutY="-2.0" prefHeight="59.0" prefWidth="170.0" promptText="DataBase" />
+                  <ComboBox fx:id="currentDataBase" layoutY="-1.0" prefHeight="39.0" prefWidth="170.0" promptText="DataBase" />
+                  <HBox fx:id="buttonsBox" layoutY="44.0" prefHeight="31.0" prefWidth="170.0" />
                </children>
             </Pane>
             <Pane prefHeight="200.0" prefWidth="200.0" GridPane.rowIndex="1">
                <children>
-                  <ListView fx:id="tableList" prefHeight="490.0" prefWidth="170.0" />
-                  <Button fx:id="createTable" layoutX="4.0" layoutY="495.0" mnemonicParsing="false" onAction="#createTable" prefHeight="39.0" prefWidth="162.0" text="Create table" />
+                  <ListView fx:id="tableList" prefHeight="475.0" prefWidth="170.0" style="-fx-background-color: #D4ABED;" />
+                  <Button fx:id="createTable" layoutX="4.0" layoutY="479.0" mnemonicParsing="false" onAction="#createTable" prefHeight="39.0" prefWidth="162.0" text="Create table" />
                </children>
             </Pane>
             <Pane prefHeight="200.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
                <children>
-                  <TableView fx:id="table" prefHeight="541.0" prefWidth="630.0" />
+                  <TableView fx:id="table" prefHeight="526.0" prefWidth="630.0" />
                </children>
             </Pane>
             <Pane prefHeight="50.0" prefWidth="647.0" GridPane.columnIndex="1">
                <children>
-                  <Button fx:id="newDataButton" layoutX="14.0" layoutY="17.0" mnemonicParsing="false" onAction="#newData" text="New Data" />
+                  <Button fx:id="newDataButton" layoutX="374.0" layoutY="17.0" mnemonicParsing="false" onAction="#newData" text="New Data" />
                </children></Pane>
          </children>
       </GridPane>

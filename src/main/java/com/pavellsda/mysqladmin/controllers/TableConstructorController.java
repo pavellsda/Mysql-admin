@@ -13,13 +13,13 @@ import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import javafx.util.Pair;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Vector;
 
+import static com.pavellsda.mysqladmin.utils.Utils.alert;
 import static com.pavellsda.mysqladmin.utils.Utils.getTypes;
 
 /**
@@ -53,14 +53,13 @@ public class TableConstructorController {
     }
 
     public void addColumn() {
-
         Vector<String> column = createDialog();
-
-        addColumnToTable(column.get(0), column.get(1), column.get(2));
+        if(column!=null)
+            addColumnToTable(column.get(0), column.get(1), column.get(2));
 
     }
 
-    public void createTable(){
+    public void createTable() throws SQLException {
         String tableName = tableNameField.getText();
         String[] columnsNames = new String[colNames.size()];
         String[] columnsTypes = new String[colTypes.size()];
@@ -71,16 +70,20 @@ public class TableConstructorController {
             columnsTypes[i] = colTypes.get(i);
         }
 
-        createdTable = new Table(tableName, columnsNames, columnsTypes, primaryKey);
-
-        deleteStage(this.stage);
+        if(tableName.length()>=1) {
+            createdTable = new Table(tableName, columnsNames, columnsTypes, primaryKey);
+            deleteStage(this.stage);
+        }
+        else {
+            alert("Table name is empty!");
+        }
     }
 
     void setStage(Stage stage){
         this.stage = stage;
     }
 
-    private void deleteStage(Stage stage){
+    private void deleteStage(Stage stage) throws SQLException {
         stage.hide();
         stage.close();
         mainController.sendTableToDataBase(createdTable);
@@ -121,19 +124,20 @@ public class TableConstructorController {
     }
 
     private Vector<String> createDialog(){
-        TextField columnName = new TextField();
-        ComboBox<String> typeColumn = new ComboBox<String>();
-        NumTextField size = new NumTextField();
-        CheckBox primary = new CheckBox();
+        TextField columnNameTextField = new TextField();
+        ComboBox<String> typeColumnComboBox = new ComboBox<String>();
+        NumTextField sizeField = new NumTextField();
+        CheckBox primaryKeyCheckBox = new CheckBox();
+        Vector<String> columnData = new Vector<>();
 
-        typeColumn.getItems().addAll(getTypes());
+        typeColumnComboBox.getItems().addAll(getTypes());
 
-        columnName.setMinWidth(150);
-        typeColumn.setMinWidth(150);
-        size.setMinWidth(150);
-        primary.setMinWidth(150);
+        columnNameTextField.setMinWidth(150);
+        typeColumnComboBox.setMinWidth(150);
+        sizeField.setMinWidth(150);
+        primaryKeyCheckBox.setMinWidth(150);
 
-        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        Dialog<String> dialog = new Dialog<>();
         dialog.setTitle("Column Creator");
 
         ButtonType acceptButton = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
@@ -144,55 +148,60 @@ public class TableConstructorController {
         gridPane.setVgap(10);
         gridPane.setPadding(new Insets(20, 150, 10, 10));
 
-        gridPane.add(columnName, 0, 1);
+        gridPane.add(columnNameTextField, 0, 1);
         gridPane.add(new Label("Column Name:"), 0, 0);
 
-        gridPane.add(typeColumn, 1, 1);
+        gridPane.add(typeColumnComboBox, 1, 1);
         gridPane.add(new Label("Type:"), 1, 0);
 
-        gridPane.add(size, 2, 1);
+        gridPane.add(sizeField, 2, 1);
         gridPane.add(new Label("Size:"), 2, 0);
 
         if(primaryKey==null) {
-            gridPane.add(primary, 3, 1);
+            gridPane.add(primaryKeyCheckBox, 3, 1);
             gridPane.add(new Label("PrimaryKey:"), 3, 0);
         }
 
-        primary.selectedProperty().addListener(new ChangeListener<Boolean>() {
+        primaryKeyCheckBox.selectedProperty().addListener(new ChangeListener<Boolean>() {
             @Override
             public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
-                primaryKey = columnName.getText();
+                primaryKey = columnNameTextField.getText();
             }
         });
 
-        typeColumn.valueProperty().addListener(new ChangeListener<String>() {
+        typeColumnComboBox.valueProperty().addListener(new ChangeListener<String>() {
             @Override public void changed(ObservableValue ov, String t, String t1) {
-                if(Objects.equals(typeColumn.getValue(), "DATETIME") ||
-                        Objects.equals(typeColumn.getValue(), "DATE"))
-                   size.setEditable(false);
+                if(Objects.equals(typeColumnComboBox.getValue(), "DATETIME") ||
+                        Objects.equals(typeColumnComboBox.getValue(), "DATE") ||
+                        Objects.equals(typeColumnComboBox.getValue(), "CHAR"))
+                   sizeField.setEditable(false);
 
                 else
-                    size.setEditable(true);
+                    sizeField.setEditable(true);
             }
         });
 
         dialog.getDialogPane().setContent(gridPane);
 
-        dialog.setResultConverter(dialogButton -> {
+        dialog.showAndWait();
+
+        if(!columnNameTextField.getText().isEmpty() ||
+                (typeColumnComboBox.getValue()!=null)){
+
+            columnData.add(columnNameTextField.getText());
+            columnData.add(typeColumnComboBox.getValue());
+            columnData.add(sizeField.getText());
+
+            return columnData;
+
+        } else{
+            alert("Fields empty");
             return null;
-        });
+        }
 
-        Optional<Pair<String, String>> result = dialog.showAndWait();
-
-        Vector<String> column = new Vector<>();
-        column.add(columnName.getText());
-        column.add(typeColumn.getValue());
-        column.add(size.getText());
-
-        return column;
     }
 
-    public Table getCreatedTable() {
+    Table getCreatedTable() {
         return this.createdTable;
     }
 }

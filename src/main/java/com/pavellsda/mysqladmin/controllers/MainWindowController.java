@@ -1,5 +1,6 @@
 package com.pavellsda.mysqladmin.controllers;
 
+import com.pavellsda.mysqladmin.utils.ImageButton;
 import com.pavellsda.mysqladmin.utils.NumTextField;
 import com.pavellsda.mysqladmin.utils.Table;
 import javafx.beans.property.SimpleStringProperty;
@@ -15,6 +16,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.Pair;
@@ -41,6 +44,8 @@ public class MainWindowController {
     public ListView<String> tableList;
     public TableView table;
     public Button newDataButton;
+    public Pane buttonsPane;
+    public HBox buttonsBox;
     private ContextMenu popupMenu = new ContextMenu();
     private ContextMenu listPopupMenu = new ContextMenu();
     public Button createTable;
@@ -58,12 +63,16 @@ public class MainWindowController {
     private Statement statement;
     private Connection connection;
 
+    private ImageButton createDataBaseButton;
+    private ImageButton deleteDataBaseButton;
+
     public MainWindowController() {
     }
 
 
     @FXML
     private void initialize() throws IOException {
+        buttonsInit();
         initPopupMenu();
         connect();
         initCurrentDataBase();
@@ -127,10 +136,11 @@ public class MainWindowController {
         tableList.getItems().addAll(FXCollections.observableList(getTables(currentDataBase.getValue())));
         tableList.setOnMouseClicked(event -> {
             if (event.getButton() == MouseButton.PRIMARY) {
-                initTable();
-            } else {
-                listPopupMenu.show(tableList, event.getScreenX(), event.getScreenY());
+                if (tableList.getSelectionModel().getSelectedItem() != null)
+                    initTable();
             }
+            else
+                listPopupMenu.show(tableList, event.getScreenX(), event.getScreenY());
 
         });
 
@@ -312,7 +322,7 @@ public class MainWindowController {
 
     private void listMenuDelete() {
         if (tableList.getSelectionModel().getSelectedItems().size() > 0) {
-            ObservableList itemsToDelete = tableList.getSelectionModel().getSelectedItems();
+            ObservableList<String> itemsToDelete = tableList.getSelectionModel().getSelectedItems();
             deleteTable(subStr(itemsToDelete.toString()));
         }
     }
@@ -412,7 +422,6 @@ public class MainWindowController {
 
     private void deleteTable(String toDelete){
         StringBuilder sql_request = new StringBuilder("DROP TABLE " +toDelete +";");
-        print(sql_request.toString());
         try {
             statement.executeUpdate(String.valueOf(sql_request));
         } catch (SQLException e) {
@@ -435,6 +444,16 @@ public class MainWindowController {
     }
 
     private String getCurrentDataBase() { return currentDataBase.getValue(); }
+
+    private void buttonsInit(){
+        createDataBaseButton= new ImageButton("/img/buttons/createDataBase.png");
+        buttonsBox.getChildren().add(createDataBaseButton);
+
+        deleteDataBaseButton= new ImageButton("/img/buttons/deleteDataBase.png");
+        buttonsBox.getChildren().add(deleteDataBaseButton);
+        //buttonsPane.getChildren().add(createDataBaseButton);
+
+    }
 
 
 
